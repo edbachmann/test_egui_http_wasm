@@ -3,7 +3,8 @@ use std::{
     ops::ControlFlow,
     sync::{Arc, Mutex},
 };
-
+use serde_json::Value;
+use serde_json::from_str;
 use ehttp::*;
 
 #[derive(Debug)]
@@ -13,12 +14,34 @@ enum Download {
     Done(ehttp::Result<ehttp::Response>),
 }
 
+fn make_request(download:Arc<Mutex<Download>>, url: String, ui:  &egui::Context, test_vec :&mut Vec<String>) {
+
+    
+
+    let download_store = download.clone();
+   // *download_store.lock().unwrap() = Download::InProgress;
+    let egui_ctx = ui.clone();
+
+    let request = ehttp::Request::get(url);
+
+    ehttp::fetch(request, move |response| {
+        *download_store.lock().unwrap() = Download::Done(response);
+        egui_ctx.request_repaint(); // Wake up UI thread
+    });
+
+   
+
+
+
+}
 
 fn response_vec(ui: &mut egui::Ui, response: &ehttp::Response, test_vec :&mut Vec<String>) {
 
     if let Some(text) = response.text() {
         let mut text = response.text().unwrap();
-        test_vec.push(text.to_string());
+       let v: Value = serde_json::from_str(text).unwrap();
+      // text = v["message"];
+        test_vec.push(v["message"].to_string());
        } else {
 
         println!("Not working");
@@ -28,11 +51,7 @@ fn response_vec(ui: &mut egui::Ui, response: &ehttp::Response, test_vec :&mut Ve
 
 
 
-    for i in test_vec{
-        ui.label(i.to_string());
 
-
-    }
     let text = response.text();
 
     
@@ -40,7 +59,7 @@ fn response_vec(ui: &mut egui::Ui, response: &ehttp::Response, test_vec :&mut Ve
 
 }
 
-use egui::{TextBuffer, Response};
+use egui::{TextBuffer, Response, Ui};
 //use tokio::sync::watch::{self, Sender, Receiver};
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -53,7 +72,15 @@ pub struct TemplateApp {
     test_boo1: bool,
     url: String,
     #[serde(skip)]
-    download: Arc<Mutex<Download>>,
+    download1: Arc<Mutex<Download>>,
+    #[serde(skip)]
+    download2: Arc<Mutex<Download>>,
+    #[serde(skip)]
+    download3: Arc<Mutex<Download>>,
+    #[serde(skip)]
+    download4: Arc<Mutex<Download>>,
+    #[serde(skip)]
+    download5: Arc<Mutex<Download>>,
 
     // this how you opt-out of serialization of a member
     #[serde(skip)]
@@ -71,7 +98,11 @@ impl Default for TemplateApp {
             test_var:format!("This test is not working"),
             test_vec:Vec::new(),
             test_boo1: false,
-            download:Arc::new(Mutex::new(Download::None)),
+            download1:Arc::new(Mutex::new(Download::None)),
+            download2:Arc::new(Mutex::new(Download::None)),
+            download3:Arc::new(Mutex::new(Download::None)),
+            download4:Arc::new(Mutex::new(Download::None)),
+            download5:Arc::new(Mutex::new(Download::None)),
 
         }
     }
@@ -108,7 +139,11 @@ impl eframe::App for TemplateApp {
             test_var,
             test_boo1,
             url,
-            download,
+            download1,
+            download2,
+            download3,
+            download4,
+            download5,
 
         
         
@@ -124,21 +159,20 @@ impl eframe::App for TemplateApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
 
-            let download: &Download = &self.download.lock().unwrap();
+
+            
+         
 
 
-            ui.heading("eframe template");
-            ui.hyperlink("https://github.com/emilk/eframe_template");
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/eframe_template/blob/master/",
-                "Source code."
-            ));
+
 
             ui.label(format!("Here is some sexy text"));
             ui.separator();
-            if ui.button("Request?").clicked() {
-                let request = ehttp::Request::get(&self.url);
-                match download {
+            ui.horizontal( |ui| {
+            if ui.button("Request line 1").clicked() {
+                let tmp: &Download = &self.download1.lock().unwrap();
+
+                match tmp {
                     Download::None => {}
                     Download::InProgress => {
                         println!("Wait for it…");
@@ -151,30 +185,91 @@ impl eframe::App for TemplateApp {
                         }
                         Ok(response) => {
                             
-                            println!("Does it work? {:?}", response_vec(ui, response, test_vec));
+                            println!("Does it work? {:?}", response_vec(ui, &response, test_vec));
                         }
                     }
                 }
-                let download_store = self.download.clone();
-                *download_store.lock().unwrap() = Download::InProgress;
-                let egui_ctx = ctx.clone();
-        
-                ehttp::fetch(request, move |response| {
-                    *download_store.lock().unwrap() = Download::Done(response);
-                    egui_ctx.request_repaint(); // Wake up UI thread
-                });
+
+                make_request(self.download1.clone(), url.clone(), ctx, test_vec)
                 
 
                 
-        
+          
                 
                 //test_vec.push(tmp);
             
             }
+
+            if ui.button("Request line 2").clicked() {
+                let tmp: &Download = &self.download2.lock().unwrap();
+
+                match tmp {
+                    Download::None => {}
+                    Download::InProgress => {
+                        println!("Wait for it…");
+                    }
+                
+                    
+                    Download::Done(response) => match response {
+                        Err(err) => {
+                           println!("{}",err);
+                        }
+                        Ok(response) => {
+                            
+                            println!("Does it work? {:?}", response_vec(ui, &response, test_vec));
+                        }
+                    }
+                }
+
+                make_request(self.download2.clone(), url.clone(), ctx, test_vec)
+                
+
+                
+          
+                
+                //test_vec.push(tmp);
+            
+            }
+            if ui.button("Request line 3").clicked() {
+                let tmp: &Download = &self.download3.lock().unwrap();
+
+                match tmp {
+                    Download::None => {}
+                    Download::InProgress => {
+                        println!("Wait for it…");
+                    }
+                
+                    
+                    Download::Done(response) => match response {
+                        Err(err) => {
+                           println!("{}",err);
+                        }
+                        Ok(response) => {
+                            
+                            println!("Does it work? {:?}", response_vec(ui, &response, test_vec));
+                        }
+                    }
+                }
+
+                make_request(self.download3.clone(), url.clone(), ctx, test_vec)
+                
+
+                
+          
+                
+                //test_vec.push(tmp);
+            
+            }
+    });
             if ui.button("Un-Request").clicked() {
                 test_vec.pop();
             }
             
+            for i in test_vec{
+                ui.label(i.to_string());
+        
+        
+            }
 
 
         });
